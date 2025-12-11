@@ -4,7 +4,10 @@ import static org.assertj.core.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
 import java.time.LocalDate;
+import java.time.YearMonth;
+import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -42,6 +45,8 @@ public class MemberStatCalculatorTest {
 
 	private Member member;
 	private List<DiaryStat> diaryStats;
+
+	private final DateTimeFormatter ymFormatter = DateTimeFormatter.ofPattern("yyyy년 M월");
 
 	@BeforeEach
 	void setUp() {
@@ -160,15 +165,18 @@ public class MemberStatCalculatorTest {
 		verify(memberStatRepository).save(captor.capture());
 		MemberStat saved = captor.getValue();
 
-		assertThat(saved.getEscapeScheduleStat().getMonthlyCountMap()).isEqualTo(
-			Map.of("2025년 5월", 0, "2025년 4월", 0, "2025년 3월", 1, "2025년 2월", 1, "2025년 1월", 0, "2024년 12월", 0)
-		);
+		Map<String, Integer> monthlyCountMap = new LinkedHashMap<>();
+		for (int i = 5; i >= 0; i--) {
+			monthlyCountMap.put(YearMonth.now().minusMonths(i).format(ymFormatter), 0);
+		}
+
+		assertThat(saved.getEscapeScheduleStat().getMonthlyCountMap()).isEqualTo(monthlyCountMap);
 		assertThat(saved.getEscapeScheduleStat().getLastMonthCount()).isEqualTo(0);
 		assertThat(saved.getEscapeScheduleStat().getLastMonthAvgSatisfaction()).isEqualTo(0);
 		assertThat(saved.getEscapeScheduleStat().getLastMonthAvgHintCount()).isEqualTo(0);
 		assertThat(saved.getEscapeScheduleStat().getLastMonthSuccessRate()).isEqualTo(0);
 		assertThat(saved.getEscapeScheduleStat().getLastMonthAvgTime()).isEqualTo(0);
-		assertThat(saved.getEscapeScheduleStat().getLastMonthTopTheme()).isEqualTo(null);
+		assertThat(saved.getEscapeScheduleStat().getLastMonthTopTheme()).isNull();
 		assertThat(saved.getEscapeScheduleStat().getLastMonthTopSatisfaction()).isEqualTo(0);
 	}
 }
