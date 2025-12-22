@@ -7,6 +7,7 @@ import org.hibernate.validator.constraints.Length;
 
 import com.ddobang.backend.domain.store.entity.Store;
 import com.ddobang.backend.domain.theme.dto.request.ThemeForAdminRequest;
+import com.ddobang.backend.domain.theme.tag.entity.ThemeTag;
 import com.ddobang.backend.global.entity.BaseTime;
 
 import jakarta.persistence.CascadeType;
@@ -70,8 +71,10 @@ public class Theme extends BaseTime {
 		OPENED, CLOSED, INACTIVE, DELETED
 	}
 
+	@Column(length = 1024)
 	private String reservationUrl;
 
+	@Column(length = 1024)
 	private String thumbnailUrl;
 
 	@NotNull

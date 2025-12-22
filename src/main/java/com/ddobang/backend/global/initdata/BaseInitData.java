@@ -22,7 +22,9 @@ import com.ddobang.backend.domain.diary.dto.request.DiaryRequestDto;
 import com.ddobang.backend.domain.diary.service.DiaryService;
 import com.ddobang.backend.domain.member.entity.Gender;
 import com.ddobang.backend.domain.member.entity.Member;
+import com.ddobang.backend.domain.member.entity.MemberTag;
 import com.ddobang.backend.domain.member.repository.MemberRepository;
+import com.ddobang.backend.domain.member.repository.MemberTagRepository;
 import com.ddobang.backend.domain.message.entity.Message;
 import com.ddobang.backend.domain.message.repository.MessageRepository;
 import com.ddobang.backend.domain.party.dto.request.PartyRequest;
@@ -36,9 +38,9 @@ import com.ddobang.backend.domain.region.repository.RegionRepository;
 import com.ddobang.backend.domain.store.entity.Store;
 import com.ddobang.backend.domain.store.repository.StoreRepository;
 import com.ddobang.backend.domain.theme.entity.Theme;
-import com.ddobang.backend.domain.theme.entity.ThemeTag;
 import com.ddobang.backend.domain.theme.repository.ThemeRepository;
-import com.ddobang.backend.domain.theme.repository.ThemeTagRepository;
+import com.ddobang.backend.domain.theme.tag.entity.ThemeTag;
+import com.ddobang.backend.domain.theme.tag.repository.ThemeTagRepository;
 
 import jakarta.transaction.Transactional;
 import lombok.Getter;
@@ -57,6 +59,7 @@ public class BaseInitData {
 	private final PartyMemberRepository partyMemberRepository;
 	private final MessageRepository messageRepository;  // 추가
 	private final AlarmRepository alarmRepository; // 추가
+	private final MemberTagRepository memberTagRepository;
 
 	@Autowired
 	@Lazy
@@ -98,6 +101,10 @@ public class BaseInitData {
 	public void memberInitData() {
 		if (memberRepository.count() > 0) {
 			return;
+		}
+		// 1. 기본 태그 저장
+		for (int i = 1; i <= 5; i++) {
+			memberTagRepository.save(new MemberTag("기본 태그 " + i));
 		}
 
 		// TODO: 테스트용 회원 생성 - 추후 삭제 예정 or 변경
@@ -148,9 +155,6 @@ public class BaseInitData {
 			return;
 		}
 
-		if (themeRepository.count() > 0)
-			return;
-
 		// 1. 지역 2개 저장
 		region1 = regionRepository.save(new Region("서울", "강남"));
 		region2 = regionRepository.save(new Region("서울", "홍대"));
@@ -178,8 +182,10 @@ public class BaseInitData {
 		tag3 = themeTagRepository.save(new ThemeTag("판타지"));
 
 		// 4. 테마 10개 저장
-		themes = IntStream.range(1, 31)
-			.mapToObj(i -> themeRepository.save(Theme.builder()
+		LocalDateTime baseTime = LocalDateTime.of(2025, 4, 1, 0, 0);
+
+		for (int i = 1; i <= 30; i++) {
+			Theme theme = Theme.builder()
 				.name("테마 " + i)
 				.description("테마 설명 " + i)
 				.officialDifficulty(3.0f)
@@ -192,8 +198,12 @@ public class BaseInitData {
 				.thumbnailUrl("https://www.roomlescape.com/file/theme_info/1723787821_10bd760472.gif")
 				.store(i % 2 == 0 ? store1 : store2)
 				.themeTags(i % 4 != 0 ? List.of(tag1, tag2) : List.of(tag3))
-				.build()))
-			.toList();
+				.build();
+
+			Theme savedtheme = themeRepository.save(theme);
+			savedtheme.forceSetCreatedAt(baseTime.plusMinutes(i));
+			themes.add(savedtheme);
+		}
 	}
 
 	// Diary init data
@@ -263,8 +273,8 @@ public class BaseInitData {
 					theme.getName() + "모임",
 					"모임 소개",
 					LocalDateTime.now().plusDays((int)(Math.random() * 6 + 5)),
-					theme.getMaxParticipants() - 2,
-					theme.getMaxParticipants(),
+					theme.getMaxParticipants() == 0 ? theme.getMinParticipants() + 2 : theme.getMaxParticipants() - 1,
+					theme.getMaxParticipants() == 0 ? theme.getMinParticipants() + 4 : theme.getMaxParticipants(),
 					Math.random() < 0.5
 				);
 				Party party = partyRepository.save(Party.of(request, theme));
