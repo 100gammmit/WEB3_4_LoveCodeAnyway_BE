@@ -83,7 +83,7 @@ public class Theme extends BaseTime {
 	private Store store;
 
 	@OneToMany(mappedBy = "theme", cascade = CascadeType.ALL, orphanRemoval = true)
-	private List<ThemeTagMapping> themeTagMappings = new ArrayList<>();
+	private final List<ThemeTagMapping> themeTagMappings = new ArrayList<>();
 
 	@Builder
 	public Theme(String name, String description, float officialDifficulty, int runtime,

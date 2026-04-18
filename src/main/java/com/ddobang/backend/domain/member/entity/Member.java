@@ -60,8 +60,8 @@ public class Member extends BaseTime {
 		this.introduction = introduction;
 		this.kakaoId = kakaoId;
 		this.profilePictureUrl = profilePictureUrl;
-		this.mannerScore = mannerScore;
-		this.hostCount = hostCount;
+		this.mannerScore = mannerScore != null ? mannerScore : BigDecimal.ZERO;
+		this.hostCount = hostCount != null ? hostCount : 0;
 		this.admPassword = admPassword;
 	}
 
