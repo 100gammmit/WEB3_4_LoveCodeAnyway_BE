@@ -26,6 +26,7 @@ import com.ddobang.backend.domain.diary.repository.DiaryStatRepository;
 import com.ddobang.backend.domain.member.entity.Member;
 import com.ddobang.backend.domain.member.entity.MemberStat;
 import com.ddobang.backend.domain.member.repository.MemberStatRepository;
+import com.ddobang.backend.domain.member.service.MemberService;
 import com.ddobang.backend.domain.theme.entity.Theme;
 
 @ExtendWith(MockitoExtension.class)
@@ -35,6 +36,9 @@ public class MemberStatCalculatorTest {
 
 	@Mock
 	private MemberStatRepository memberStatRepository;
+
+	@Mock
+	private MemberService memberService;
 
 	@InjectMocks
 	private MemberStatCalculator memberStatCalculator;
@@ -107,10 +111,12 @@ public class MemberStatCalculatorTest {
 	@DisplayName("사용자 분석, 통계 저장 테스트 - EscapeSummaryStat")
 	void t1() {
 		// given
-		when(diaryStatRepository.findByAuthorId(1L)).thenReturn(diaryStats);
+		long memberId = 1L;
+		when(diaryStatRepository.findByAuthorId(memberId)).thenReturn(diaryStats);
+		//when(memberService.getMemberById(memberId)).thenReturn(member);
 
 		// when
-		memberStatCalculator.updateMemberStatWithRetry(member);
+		memberStatCalculator.updateMemberStat(member.getId());
 
 		// then
 		ArgumentCaptor<MemberStat> captor = ArgumentCaptor.forClass(MemberStat.class);
@@ -136,7 +142,7 @@ public class MemberStatCalculatorTest {
 		when(diaryStatRepository.findByAuthorId(1L)).thenReturn(diaryStats);
 
 		// when
-		memberStatCalculator.updateMemberStatWithRetry(member);
+		memberStatCalculator.updateMemberStat(member.getId());
 
 		// then
 		ArgumentCaptor<MemberStat> captor = ArgumentCaptor.forClass(MemberStat.class);
@@ -158,7 +164,7 @@ public class MemberStatCalculatorTest {
 		when(diaryStatRepository.findByAuthorId(1L)).thenReturn(diaryStats);
 
 		// when
-		memberStatCalculator.updateMemberStatWithRetry(member);
+		memberStatCalculator.updateMemberStat(member.getId());
 
 		// then
 		ArgumentCaptor<MemberStat> captor = ArgumentCaptor.forClass(MemberStat.class);

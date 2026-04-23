@@ -33,7 +33,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
  * 테마 컨트롤러 통합 테스트
  * @author 100minha
  */
-@SpringBootTest
+@SpringBootTest(properties = "spring.cache.type=none")	//다른 테스트와 캐시 데이터공유로 인한 데이터 오염 방지
 @ActiveProfiles("test")
 @AutoConfigureMockMvc
 @Transactional

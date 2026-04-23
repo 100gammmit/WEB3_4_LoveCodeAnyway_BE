@@ -4,6 +4,7 @@ import java.util.List;
 import java.util.Optional;
 
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.ddobang.backend.domain.diary.entity.DiaryStat;
@@ -12,6 +13,7 @@ import com.ddobang.backend.domain.theme.dto.ThemeStatDto;
 import com.ddobang.backend.domain.theme.entity.Theme;
 import com.ddobang.backend.domain.theme.entity.ThemeStat;
 import com.ddobang.backend.domain.theme.repository.ThemeStatRepository;
+import com.ddobang.backend.domain.theme.service.ThemeService;
 import com.ddobang.backend.global.util.Ut;
 
 import lombok.RequiredArgsConstructor;
@@ -22,9 +24,11 @@ public class ThemeStatCalculator {
 	private final DiaryStatRepository diaryStatRepository;
 	private final ThemeStatRepository themeStatRepository;
 
-	@Transactional
-	public void updateThemeStat(Theme theme) {
-		Long themeId = theme.getId();
+	private final ThemeService themeService;
+
+	@Transactional(propagation = Propagation.REQUIRES_NEW)
+	public void updateThemeStat(long themeId) {
+		Theme theme =  themeService.getThemeById(themeId);
 		List<DiaryStat> diaryStats = diaryStatRepository.findByThemeId(themeId);
 		ThemeStatDto stats = calculateThemeStat(diaryStats);
 		Optional<ThemeStat> themeStat = themeStatRepository.findById(themeId);

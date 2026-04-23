@@ -4,6 +4,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -18,6 +19,7 @@ import org.springframework.transaction.annotation.Transactional;
 import com.ddobang.backend.domain.member.dto.response.MemberStatResponse;
 import com.ddobang.backend.domain.member.entity.Member;
 import com.ddobang.backend.domain.member.service.MemberService;
+import com.ddobang.backend.domain.member.support.MemberStatCalculator;
 
 @ActiveProfiles("test")
 @AutoConfigureMockMvc
@@ -30,18 +32,29 @@ class MemberControllerIntegrationTest {
 	private MockMvc mvc;
 	@Autowired
 	private MemberService memberService;
+	// @Autowired
+	// private MemberStatCalculator  memberStatCalculator;
+	//
+	// @BeforeEach
+	// void setUp() {
+	// 	// BaseInitData에서 이벤트 발행을 안시켜서 stat을 수동으로 갱신해야함
+	// 	memberStatCalculator.updateMemberStat(1L);
+	// }
 
 	@Test
 	@DisplayName("사용자 분석 페이지 조회")
 	@WithUserDetails(value = "testUser1")
 	void t1() throws Exception {
+		// given
 		ResultActions resultActions = mvc
 			.perform(get("/api/v1/members/stat"))
 			.andDo(print());
 
-		Member member = memberService.getByNickname("testUser1");
+		// when
+		Member member = memberService.getMemberByUsername("testUser1");
 		MemberStatResponse memberStatResponse = memberService.getMemberStat(member);
 
+		// then
 		resultActions
 			.andExpect(handler().handlerType(MemberController.class))
 			.andExpect(handler().methodName("getMemberStat"))
@@ -114,7 +127,6 @@ class MemberControllerIntegrationTest {
 			.andDo(print());
 
 		Member member = memberService.getByNickname("testUser2");
-		MemberStatResponse memberStatResponse = memberService.getMemberStat(member);
 
 		resultActions
 			.andExpect(handler().handlerType(MemberController.class))

@@ -154,7 +154,7 @@ public class S3UploadService {
 
 	private String extractKeyFromUrl(String url) {
 		String bucketDomain = getBucketDomain();
-		if (!url.startsWith(bucketDomain)) {
+		if (!StringUtils.hasText(url) || !url.startsWith(bucketDomain)) {
 			log.warn("사진 삭제 중 잘못된 URL이 전달되었습니다. URL: {}", url);
 			return "";
 		}

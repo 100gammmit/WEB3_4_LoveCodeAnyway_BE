@@ -13,6 +13,7 @@ import java.util.Optional;
 
 import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.ddobang.backend.domain.diary.entity.DiaryStat;
@@ -26,6 +27,7 @@ import com.ddobang.backend.domain.member.entity.EscapeSummaryStat;
 import com.ddobang.backend.domain.member.entity.Member;
 import com.ddobang.backend.domain.member.entity.MemberStat;
 import com.ddobang.backend.domain.member.repository.MemberStatRepository;
+import com.ddobang.backend.domain.member.service.MemberService;
 import com.ddobang.backend.global.util.Ut;
 import com.querydsl.core.Tuple;
 
@@ -40,34 +42,17 @@ public class MemberStatCalculator {
 	private final MemberStatRepository memberStatRepository;
 	private static final DateTimeFormatter YM_FORMATTER = DateTimeFormatter.ofPattern("yyyy년 M월");
 
-	@Transactional
-	public void updateMemberStatWithRetry(Member author) {
-		int retryCount = 0;
+	private final MemberService  memberService;
 
-		while (retryCount < 3) {
-			try {
-				updateMemberStat(author);
-
-				return;
-			} catch (ObjectOptimisticLockingFailureException e) {
-				retryCount++;
-
-				log.warn("OptimisticLock 충돌 발생, 재시도 중... ({}회)", retryCount);
-				try {
-					Thread.sleep(100);
-				} catch (InterruptedException ignored) {
-				}
-			}
-		}
-		log.error("최대 재시도 횟수 초과. author id = {} 업데이트 실패", author.getId());
-	}
-
-	public void updateMemberStat(Member author) {
-		List<DiaryStat> diaryStats = diaryStatRepository.findByAuthorId(author.getId());
+	@Transactional(propagation = Propagation.REQUIRES_NEW)
+	public void updateMemberStat(long authorId) {
+		List<DiaryStat> diaryStats = diaryStatRepository.findByAuthorId(authorId);
 		EscapeSummaryStatDto escapeSummaryStatDto = calculateEscapeSummaryStat(diaryStats);
-		EscapeProfileStatDto escapeProfileStatDto = calculateEscapeProfileStat(diaryStats, author.getId());
+		EscapeProfileStatDto escapeProfileStatDto = calculateEscapeProfileStat(diaryStats, authorId);
 		EscapeScheduleStatDto escapeScheduleStatDto = calculateEscapeScheduleStat(diaryStats);
-		Optional<MemberStat> memberStat = memberStatRepository.findById(author.getId());
+		Member author = memberService.getMember(authorId);
+		Optional<MemberStat> memberStat = memberStatRepository.findById(authorId);
+
 
 		// 해당 멤버에 대한 일지가 없을 경우 분석 데이터 삭제
 		if (diaryStats.isEmpty()) {

@@ -1,5 +1,8 @@
 package com.ddobang.backend.global.initdata;
 
+import static com.ddobang.backend.domain.diary.entity.Diary.*;
+import static com.ddobang.backend.domain.diary.entity.DiaryStat.*;
+
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -19,12 +22,17 @@ import com.ddobang.backend.domain.alarm.entity.Alarm;
 import com.ddobang.backend.domain.alarm.entity.AlarmType;
 import com.ddobang.backend.domain.alarm.repository.AlarmRepository;
 import com.ddobang.backend.domain.diary.dto.request.DiaryRequestDto;
+import com.ddobang.backend.domain.diary.entity.Diary;
+import com.ddobang.backend.domain.diary.entity.DiaryStat;
+import com.ddobang.backend.domain.diary.repository.DiaryRepository;
+import com.ddobang.backend.domain.diary.repository.DiaryStatRepository;
 import com.ddobang.backend.domain.diary.service.DiaryService;
 import com.ddobang.backend.domain.member.entity.Gender;
 import com.ddobang.backend.domain.member.entity.Member;
 import com.ddobang.backend.domain.member.entity.MemberTag;
 import com.ddobang.backend.domain.member.repository.MemberRepository;
 import com.ddobang.backend.domain.member.repository.MemberTagRepository;
+import com.ddobang.backend.domain.member.support.MemberStatCalculator;
 import com.ddobang.backend.domain.message.entity.Message;
 import com.ddobang.backend.domain.message.repository.MessageRepository;
 import com.ddobang.backend.domain.party.dto.request.PartyRequest;
@@ -39,6 +47,7 @@ import com.ddobang.backend.domain.store.entity.Store;
 import com.ddobang.backend.domain.store.repository.StoreRepository;
 import com.ddobang.backend.domain.theme.entity.Theme;
 import com.ddobang.backend.domain.theme.repository.ThemeRepository;
+import com.ddobang.backend.domain.theme.support.ThemeStatCalculator;
 import com.ddobang.backend.domain.theme.tag.entity.ThemeTag;
 import com.ddobang.backend.domain.theme.tag.repository.ThemeTagRepository;
 
@@ -54,12 +63,16 @@ public class BaseInitData {
 	private final ThemeRepository themeRepository;
 	private final ThemeTagRepository themeTagRepository;
 	private final MemberRepository memberRepository;
-	private final DiaryService diaryService;
+	private final DiaryRepository diaryRepository;
+	private final DiaryStatRepository diaryStatRepository;
 	private final PartyRepository partyRepository;
 	private final PartyMemberRepository partyMemberRepository;
 	private final MessageRepository messageRepository;  // 추가
 	private final AlarmRepository alarmRepository; // 추가
 	private final MemberTagRepository memberTagRepository;
+
+	private final MemberStatCalculator  memberStatCalculator;
+	private final ThemeStatCalculator themeStatCalculator;
 
 	@Autowired
 	@Lazy
@@ -93,6 +106,7 @@ public class BaseInitData {
 			self.partyInitData();
 			self.messageInitData();  // 추가
 			self.alarmInitData();    // 추가
+			self.updateStatData();
 		};
 	}
 
@@ -209,35 +223,48 @@ public class BaseInitData {
 	// Diary init data
 	@Transactional
 	public void diaryInitData() {
-		if (diaryService.getItemsAll(1, 10).getTotalElements() > 0) {
+		if (diaryRepository.count() > 0) {
 			return;
 		}
 
-		Member member = memberRepository.findByNickname("testUser1").orElseThrow();
+		Member member = memberRepository.findById(1L).orElseThrow();
 
 		for (int i = 1; i <= 9; i++) {
-			diaryService.save(
-				member,
-				DiaryRequestDto.builder()
-					.themeId((long)i)
-					.escapeDate(LocalDate.of(2024, i, 15))
-					.participants("지인1, 지인2")
-					.difficulty(3)
-					.fear(3)
-					.activity(3)
-					.satisfaction(3)
-					.production(3)
-					.story(3)
-					.question(3)
-					.interior(3)
-					.deviceRatio(70)
-					.hintCount(i % 3)
-					.escapeResult(i % 2 == 0 ? true : false)
-					.timeType("REMAINING")
-					.elapsedTime("15:25")
-					.review("너무 재밌었다!!")
-					.build()
+			DiaryRequestDto diaryRequestDto = DiaryRequestDto.builder()
+				.themeId((long)i)
+				.escapeDate(LocalDate.of(2024, i, 15))
+				.participants("지인1, 지인2")
+				.difficulty(3)
+				.fear(3)
+				.activity(3)
+				.satisfaction(3)
+				.production(3)
+				.story(3)
+				.question(3)
+				.interior(3)
+				.deviceRatio(70)
+				.hintCount(i % 3)
+				.escapeResult(i % 2 == 0)
+				.timeType("REMAINING")
+				.elapsedTime("15:25")
+				.review("너무 재밌었다!!")
+				.build();
+			Theme theme = themeRepository.findById((long)i).orElseThrow();
+
+			String[] timeBits = diaryRequestDto.elapsedTime().split(":");
+			int timeSeconds = Integer.parseInt(timeBits[0]) * 60 + Integer.parseInt(timeBits[1]);
+
+			int elapsedTime = theme.getRuntime() * 60 - timeSeconds;
+
+			Diary diary = diaryRepository.save(
+				toDiary(member, theme, diaryRequestDto)
 			);
+
+			DiaryStat diaryStat = diaryStatRepository.save(
+				toDiaryStat(diary, diaryRequestDto, elapsedTime)
+			);
+
+			diary.setDiaryStat(diaryStat);
 		}
 	}
 
@@ -492,5 +519,21 @@ public class BaseInitData {
 		}
 
 		return alarm;
+	}
+
+	// 이벤트를 발행하지 않아 멤버, 테바 stat을 수동으로 갱신
+	public void updateStatData() {
+		List<DiaryStat> all = diaryStatRepository.findAll();
+		if (all.isEmpty()) return;
+
+		all.stream()
+			.map(ds -> ds.getAuthor().getId())
+			.distinct()
+			.forEach(memberStatCalculator::updateMemberStat);
+
+		all.stream()
+			.map(ds -> ds.getTheme().getId())
+			.distinct()
+			.forEach(themeStatCalculator::updateThemeStat);
 	}
 }

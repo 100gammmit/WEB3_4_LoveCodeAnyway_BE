@@ -21,17 +21,16 @@ import com.ddobang.backend.domain.diary.dto.response.DiaryDto;
 import com.ddobang.backend.domain.diary.dto.response.DiaryListDto;
 import com.ddobang.backend.domain.diary.entity.Diary;
 import com.ddobang.backend.domain.diary.entity.DiaryStat;
+import com.ddobang.backend.domain.diary.event.DiaryChangedEvent;
 import com.ddobang.backend.domain.diary.exception.DiaryErrorCode;
 import com.ddobang.backend.domain.diary.exception.DiaryException;
 import com.ddobang.backend.domain.diary.repository.DiaryRepository;
 import com.ddobang.backend.domain.diary.repository.DiaryStatRepository;
 import com.ddobang.backend.domain.member.entity.Member;
-import com.ddobang.backend.domain.member.support.MemberStatCalculator;
 import com.ddobang.backend.domain.theme.dto.request.ThemeForMemberRequest;
 import com.ddobang.backend.domain.theme.dto.response.SimpleThemeResponse;
 import com.ddobang.backend.domain.theme.entity.Theme;
 import com.ddobang.backend.domain.theme.service.ThemeService;
-import com.ddobang.backend.domain.theme.support.ThemeStatCalculator;
 import com.ddobang.backend.domain.upload.event.DiaryImageChangedEvent;
 import com.ddobang.backend.global.event.EventPublisher;
 import com.ddobang.backend.global.security.LoginMemberProvider;
@@ -44,26 +43,24 @@ public class DiaryService {
 	private final DiaryRepository diaryRepository;
 	private final DiaryStatRepository diaryStatRepository;
 	private final ThemeService themeService;
-	private final ThemeStatCalculator themeStatCalculator;
-	private final MemberStatCalculator memberStatCalculator;
 	private final LoginMemberProvider loginMemberProvider;
-	private final String TIME_MINUTES_SECONDS_PATTERN = "^\\d{1,3}:\\d{1,2}$";
-	private final String TIME_TYPE_REMAINING = "REMAINING";
-	private final String TIME_TYPE_ELAPSED = "ELAPSED";
+	private final EventPublisher eventPublisher;
 
-	private final EventPublisher publisher;
+	private static final String TIME_MINUTES_SECONDS_PATTERN = "^\\d{1,3}:\\d{1,2}$";
+	private static final String TIME_TYPE_REMAINING = "REMAINING";
+	private static final String TIME_TYPE_ELAPSED = "ELAPSED";
 
 	@Transactional
 	public DiaryDto write(DiaryRequestDto diaryRequestDto) {
-		Theme theme = themeService.getThemeById(diaryRequestDto.themeId());
+
 		Member actor = loginMemberProvider.getCurrentMember();
 
 		return DiaryDto.of(save(actor, diaryRequestDto));
 	}
 
 	public Diary save(Member author, DiaryRequestDto diaryRequestDto) {
-		Theme theme = themeService.getThemeById(diaryRequestDto.themeId());
 
+		Theme theme = themeService.getThemeById(diaryRequestDto.themeId());
 		if (diaryRepository.findByAuthorIdAndThemeId(author.getId(), diaryRequestDto.themeId()).isPresent()) {
 			throw new DiaryException(DiaryErrorCode.DIARY_THEME_ALREADY_EXISTS);
 		}
@@ -83,8 +80,11 @@ public class DiaryService {
 		);
 
 		diary.setDiaryStat(diaryStat);
-		themeStatCalculator.updateThemeStat(theme);
-		memberStatCalculator.updateMemberStatWithRetry(author);
+
+		eventPublisher.publish(DiaryChangedEvent.builder()
+			.themeId(theme.getId())
+			.memberId(author.getId())
+			.build());
 
 		return diary;
 	}
@@ -131,8 +131,11 @@ public class DiaryService {
 		diary.getDiaryStat().modify(diaryRequestDto, elapsedTime);
 
 		diaryRepository.flush();
-		themeStatCalculator.updateThemeStat(theme);
-		memberStatCalculator.updateMemberStatWithRetry(actor);
+
+		eventPublisher.publish(DiaryChangedEvent.builder()
+			.themeId(theme.getId())
+			.memberId(actor.getId())
+			.build());
 
 		return DiaryDto.of(diary);
 	}
@@ -147,10 +150,12 @@ public class DiaryService {
 		String imageUrl = diary.getImageUrl();
 
 		diaryRepository.delete(diary);
-		publisher.publish(new DiaryImageChangedEvent(imageUrl));
+		eventPublisher.publish(new DiaryImageChangedEvent(imageUrl));
 
-		themeStatCalculator.updateThemeStat(theme);
-		memberStatCalculator.updateMemberStatWithRetry(actor);
+		eventPublisher.publish(DiaryChangedEvent.builder()
+			.themeId(theme.getId())
+			.memberId(actor.getId())
+			.build());
 	}
 
 	@Transactional(readOnly = true)

@@ -1,24 +1,36 @@
 package com.ddobang.backend.domain.diary.service;
 
 import static org.assertj.core.api.Assertions.*;
+import static org.awaitility.Awaitility.*;
+import static org.mockito.Mockito.*;
 
+import java.time.Duration;
 import java.time.LocalDate;
 import java.util.Optional;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.test.context.support.WithMockUser;
+import org.springframework.security.test.context.support.WithUserDetails;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.ddobang.backend.domain.diary.dto.request.DiaryRequestDto;
+import com.ddobang.backend.domain.diary.event.DiaryChangedEvent;
 import com.ddobang.backend.domain.theme.entity.ThemeStat;
 import com.ddobang.backend.domain.theme.repository.ThemeStatRepository;
+import com.ddobang.backend.domain.upload.event.ProfileImageChangedEvent;
+import com.ddobang.backend.global.event.EventPublisher;
 import com.ddobang.backend.global.security.CustomUserDetails;
+import com.ddobang.backend.global.security.LoginMemberProvider;
 
 /**
  * DiaryServiceTest
@@ -27,15 +39,13 @@ import com.ddobang.backend.global.security.CustomUserDetails;
  */
 @SpringBootTest
 @ActiveProfiles("test")
-@Transactional
+//@Transactional
 public class DiaryServiceTest {
 
 	@Autowired
 	private DiaryService diaryService;
 	@Autowired
 	private ThemeStatRepository themeStatRepository;
-
-	int diaryCount;
 
 	@BeforeEach
 	void setUp() {
@@ -45,7 +55,6 @@ public class DiaryServiceTest {
 			new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());
 
 		SecurityContextHolder.getContext().setAuthentication(authentication);
-		diaryCount = themeStatRepository.findById(1L).get().getDiaryCount();
 	}
 
 	@Test
@@ -77,14 +86,19 @@ public class DiaryServiceTest {
 		// when
 		boolean isExist = themeStatRepository.existsById(themeId);
 		diaryService.write(diaryRequestDto);
-		ThemeStat updatedThemeStat = themeStatRepository.findById(themeId).get();
+
 
 		// then
 		assertThat(isExist).isFalse();
-		assertThat(updatedThemeStat.getDiaryCount()).isEqualTo(1);
-		assertThat(updatedThemeStat.getDeviceRatio()).isEqualTo((float)diaryRequestDto.deviceRatio());
-		assertThat(updatedThemeStat.getEscapeResult()).isEqualTo(100);
-		assertThat(updatedThemeStat.getSatisfaction()).isEqualTo((float)diaryRequestDto.satisfaction());
+		await()
+			.atMost(Duration.ofSeconds(3))
+			.untilAsserted(() -> {
+				ThemeStat updatedThemeStat = themeStatRepository.findById(themeId).orElseThrow();
+				assertThat(updatedThemeStat.getDiaryCount()).isEqualTo(1);
+				assertThat(updatedThemeStat.getDeviceRatio()).isEqualTo((float)diaryRequestDto.deviceRatio());
+				assertThat(updatedThemeStat.getEscapeResult()).isEqualTo(100);
+				assertThat(updatedThemeStat.getSatisfaction()).isEqualTo((float)diaryRequestDto.satisfaction());
+			});
 	}
 
 	@Test
@@ -116,25 +130,35 @@ public class DiaryServiceTest {
 				.review("너무 재밌었다!!")
 				.build()
 		);
-		ThemeStat updatedThemeStat = themeStatRepository.findById(themeId).get();
+
 
 		// then
-		assertThat(updatedThemeStat.getDiaryCount()).isEqualTo(1);
-		assertThat(updatedThemeStat.getEscapeResult()).isEqualTo(100);
-		assertThat(updatedThemeStat.getSatisfaction()).isEqualTo(1);
+		await()
+			.atMost(Duration.ofSeconds(3))
+			.untilAsserted(() -> {
+				ThemeStat updatedThemeStat = themeStatRepository.findById(themeId).orElseThrow();
+				assertThat(updatedThemeStat.getDiaryCount()).isEqualTo(1);
+				assertThat(updatedThemeStat.getEscapeResult()).isEqualTo(100);
+				assertThat(updatedThemeStat.getSatisfaction()).isEqualTo(1);
+			});
+
 	}
 
 	@Test
 	@DisplayName("일지 삭제 시 테마 통계 업데이트(더티체킹) 테스트")
 	void t3() {
 		// given
-		Long id = 1L;
+		long id = 2L;
 
 		// when
 		diaryService.delete(id);
-		Optional<ThemeStat> updatedThemeStat = themeStatRepository.findById(id);
 
 		// then
-		assertThat(updatedThemeStat.isPresent()).isFalse();
+		await()
+			.atMost(Duration.ofSeconds(3))
+			.untilAsserted(() -> {
+				Optional<ThemeStat> updatedThemeStat = themeStatRepository.findById(id);
+				assertThat(updatedThemeStat).isNotPresent();
+			});
 	}
 }

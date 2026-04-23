@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
 import java.util.List;
+import java.util.Optional;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -19,6 +20,7 @@ import com.ddobang.backend.domain.diary.repository.DiaryStatRepository;
 import com.ddobang.backend.domain.theme.entity.Theme;
 import com.ddobang.backend.domain.theme.entity.ThemeStat;
 import com.ddobang.backend.domain.theme.repository.ThemeStatRepository;
+import com.ddobang.backend.domain.theme.service.ThemeService;
 
 @ExtendWith(MockitoExtension.class)
 public class ThemeStatCalculatorTest {
@@ -27,6 +29,9 @@ public class ThemeStatCalculatorTest {
 
 	@Mock
 	private ThemeStatRepository themeStatRepository;
+
+	@Mock
+	private ThemeService themeService;
 
 	@InjectMocks
 	private ThemeStatCalculator themeStatCalculator;
@@ -69,10 +74,11 @@ public class ThemeStatCalculatorTest {
 				.build()
 		);
 
-		when(diaryStatRepository.findByThemeId(1L)).thenReturn(diaryStats);
-
 		// when
-		themeStatCalculator.updateThemeStat(theme);
+		when(diaryStatRepository.findByThemeId(1L)).thenReturn(diaryStats);
+		when(themeService.getThemeById(1L)).thenReturn(theme);
+
+		themeStatCalculator.updateThemeStat(theme.getId());
 
 		// then
 		ArgumentCaptor<ThemeStat> captor = ArgumentCaptor.forClass(ThemeStat.class);
