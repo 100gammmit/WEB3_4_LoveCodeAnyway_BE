@@ -15,7 +15,7 @@ import lombok.extern.slf4j.Slf4j;
 @Component
 public class OptimisticLockRetryExecutor {
 
-	private static final int MAX_RETRY = 3;	// 최대 시도 횟수
+	private static final int MAX_RETRY = 5;	// 최대 시도 횟수
 	private static final long RETRY_DELAY_MILLIS = 100L; // 재시작 대기 시간
 
 	public void run(String targetName, Runnable action) {
