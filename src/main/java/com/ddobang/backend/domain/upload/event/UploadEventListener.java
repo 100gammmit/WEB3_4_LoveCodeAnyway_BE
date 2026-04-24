@@ -26,20 +26,28 @@ public class UploadEventListener {
 	@TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
 	@Async(EVENT_EXECUTOR)
 	public void onProfileImageChanged(ProfileImageChangedEvent event) {
-		log.info("프로필 이미지 삭제 : {}", event.oldUrl());
+		log.debug("프로필 이미지 삭제 : {}", event.oldUrl());
 		s3UploadService.delete(event.oldUrl());
 	}
 
 	@TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
 	@Async(EVENT_EXECUTOR)
 	public void onDiaryImageChanged(DiaryImageChangedEvent event) {
-		log.info("방탈출 일지 이미지 삭제 : {}", event.oldUrl());
+		log.debug("방탈출 일지 이미지 삭제 : {}", event.oldUrl());
 		s3UploadService.delete(event.oldUrl());
 	}
 
 	@TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
 	@Async(EVENT_EXECUTOR)
 	public void onAttachmentChanged(PostAttachmentsUpdatedEvent event) {
-		event.oldUrls().forEach(s3UploadService::delete);
+
+		for(String oldUrl : event.oldUrls()) {
+			try {
+				log.debug("문의 글 첨부파일 삭제 : {}", oldUrl);
+				s3UploadService.delete(oldUrl);
+			} catch(Exception e) {
+				log.error("첨부파일 삭제 실패, url = {}, message = {}", oldUrl, e.getMessage());
+			}
+		}
 	}
 }
