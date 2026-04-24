@@ -31,9 +31,12 @@ public class DiaryChangedEventListener {
 	@Async(EVENT_EXECUTOR)
 	@TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
 	public void handle(DiaryChangedEvent event) {
+		long themeId = event.getThemeId();
+		long memberId = event.getMemberId();
+		log.debug("DiaryChangedEvent published(themeId = {}, memberId = {})", themeId, memberId);
 
-		updateThemeStat(event.getThemeId());
-		updateMemberStat(event.getMemberId());
+		updateThemeStat(themeId);
+		updateMemberStat(memberId);
 	}
 
 	private void updateThemeStat(long themeId) {
